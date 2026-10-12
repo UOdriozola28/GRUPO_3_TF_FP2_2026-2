@@ -59,8 +59,9 @@ class Cajero:
 
 
 class Pedido:
-    def __init__(self, numero, mesa):
+    def __init__(self, numero, canal, mesa=None):
         self.__numero = numero
+        self.__canal = canal
         self.__mesa = mesa
         self.__estado = "Listo"
         self.__detalles = []
@@ -74,6 +75,9 @@ class Pedido:
     def obtener_mesa(self):
         return self.__mesa
 
+    def obtener_canal(self):
+        return self.__canal
+
     def obtener_estado(self):
         return self.__estado
 
@@ -84,7 +88,9 @@ class Pedido:
         return sum(detalle.calcular_subtotal() for detalle in self.__detalles)
 
     def calcular_recargo(self):
-        return self.calcular_subtotal() * 0.10
+        if self.__canal == "Salon":
+            return self.calcular_subtotal() * 0.10
+        return 0.0
 
     def calcular_total(self):
         return self.calcular_subtotal() + self.calcular_recargo()
@@ -95,31 +101,57 @@ class Pedido:
 
 class RestaurantePreview:
     def __init__(self):
-        self.__cajero = Cajero("EMP021", "Carlos Mendoza")
-        self.__mesa = Mesa(7)
-        self.__pedido = Pedido("PED-000001", self.__mesa)
-        self.__pedido.agregar_detalle(Producto("Maki acevichado"), 2, 28.00)
-        self.__pedido.agregar_detalle(Producto("Gyoza de cerdo"), 1, 18.00)
-        self.__pedido.agregar_detalle(Producto("Ramen tonkotsu"), 1, 26.00)
-        self.__pedido.agregar_detalle(Producto("Te verde frio 1 L"), 1, 12.00)
+        self.__cajeros = [
+            Cajero("EMP021", "Carlos Mendoza"),
+            Cajero("EMP022", "Lucia Fernandez"),
+        ]
+
+        mesa_7 = Mesa(7)
+        mesa_12 = Mesa(12)
+
+        pedido_1 = Pedido("PED-000001", "Salon", mesa_7)
+        pedido_1.agregar_detalle(Producto("Maki acevichado"), 2, 28.00)
+        pedido_1.agregar_detalle(Producto("Gyoza de cerdo"), 1, 18.00)
+        pedido_1.agregar_detalle(Producto("Ramen tonkotsu"), 1, 26.00)
+        pedido_1.agregar_detalle(Producto("Te verde frio 1 L"), 1, 12.00)
+
+        pedido_2 = Pedido("PED-000002", "Salon", mesa_12)
+        pedido_2.agregar_detalle(Producto("Combo Sakura"), 1, 45.00)
+        pedido_2.agregar_detalle(Producto("Gaseosa personal"), 2, 6.00)
+
+        pedido_3 = Pedido("PED-000003", "Delivery")
+        pedido_3.agregar_detalle(Producto("Ramen tonkotsu"), 2, 26.00)
+        pedido_3.agregar_detalle(Producto("Te verde frio 1 L"), 1, 12.00)
+
+        self.__pedidos = [pedido_1, pedido_2, pedido_3]
         self.__comprobantes = []
         self.__numero_boleta = 0
         self.__numero_factura = 0
 
     def buscar_pedido_por_numero(self, numero):
-        if self.__pedido.obtener_numero() == numero:
-            return self.__pedido
+        for pedido in self.__pedidos:
+            if pedido.obtener_numero() == numero:
+                return pedido
         return None
 
     def buscar_pedido_por_mesa(self, numero):
-        if self.__mesa.obtener_numero() == numero:
-            return self.__pedido
+        for pedido in self.__pedidos:
+            mesa = pedido.obtener_mesa()
+            if mesa is not None and mesa.obtener_numero() == numero:
+                return pedido
         return None
 
     def buscar_empleado(self, codigo):
-        if self.__cajero.obtener_codigo() == codigo:
-            return self.__cajero
+        for cajero in self.__cajeros:
+            if cajero.obtener_codigo() == codigo:
+                return cajero
         return None
+
+    def listar_pedidos(self):
+        return self.__pedidos
+
+    def listar_cajeros(self):
+        return self.__cajeros
 
     def emitir_boleta(self, pedido, medio_pago, dni, nombre):
         self.__numero_boleta += 1
@@ -139,7 +171,8 @@ class RestaurantePreview:
 
     def __cerrar_pedido(self, pedido):
         pedido.pagar()
-        pedido.obtener_mesa().liberar()
+        if pedido.obtener_mesa() is not None:
+            pedido.obtener_mesa().liberar()
 
     def listar_comprobantes(self):
         return self.__comprobantes
@@ -148,7 +181,19 @@ class RestaurantePreview:
 def main():
     restaurante = RestaurantePreview()
     print("\nPREVIEW DE FACTURACION - SAKURAMAKI")
-    print("Pedido disponible: PED-000001 | Mesa: 7 | Cajero: EMP021")
+    print("\nDATOS PRECARGADOS")
+    print("Cajeros:")
+    for cajero in restaurante.listar_cajeros():
+        print("  %s - %s" % (cajero.obtener_codigo(), cajero.obtener_nombres()))
+    print("Pedidos listos:")
+    for pedido in restaurante.listar_pedidos():
+        mesa = "-"
+        if pedido.obtener_mesa() is not None:
+            mesa = str(pedido.obtener_mesa().obtener_numero())
+        print("  %s | %-8s | Mesa: %-2s | Total: S/ %.2f" % (
+            pedido.obtener_numero(), pedido.obtener_canal(), mesa,
+            pedido.calcular_total(),
+        ))
     facturacion.menu(restaurante)
     print("\nFin de la preview.")
 
