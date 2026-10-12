@@ -1,4 +1,4 @@
-"""Jerarquia de comprobantes para las HU-10 y HU-11."""
+"""Jerarquia de comprobantes de pago - HU-10 y HU-11."""
 
 from abc import ABC, abstractmethod
 from datetime import datetime
@@ -8,12 +8,15 @@ ANCHO = 64
 
 
 class Comprobante(ABC):
-    def __init__(self, serie, correlativo, pedido, medio_pago, cajero):
+    def __init__(self, serie, correlativo, pedido, medio_pago):
+        if pedido.obtener_estado() != "Listo":
+            raise ValueError("Solo se puede facturar un pedido en estado Listo.")
+        if len(pedido.obtener_detalles()) == 0:
+            raise ValueError("El pedido no tiene productos registrados.")
         self.__serie = serie
         self.__correlativo = correlativo
         self.__pedido = pedido
         self.__medio_pago = medio_pago
-        self.__cajero = cajero
         self.__fecha_emision = datetime.now()
 
     def obtener_numero_completo(self):
@@ -25,9 +28,6 @@ class Comprobante(ABC):
     def obtener_medio_pago(self):
         return self.__medio_pago
 
-    def obtener_cajero(self):
-        return self.__cajero
-
     def obtener_fecha_emision(self):
         return self.__fecha_emision
 
@@ -35,8 +35,7 @@ class Comprobante(ABC):
         return self.__pedido.calcular_total()
 
     def _lineas_detalle(self):
-        lineas = ["CANT  DESCRIPCION".ljust(52) + "IMPORTE"]
-        lineas.append("-" * ANCHO)
+        lineas = ["CANT  DESCRIPCION".ljust(52) + "IMPORTE", "-" * ANCHO]
         for detalle in self.__pedido.obtener_detalles():
             producto = detalle.obtener_producto()
             descripcion = producto.obtener_nombre()
@@ -54,7 +53,6 @@ class Comprobante(ABC):
         return [
             "-" * ANCHO,
             "Medio de pago: " + self.__medio_pago,
-            "Cajero: " + self.__cajero.obtener_codigo() + " - " + self.__cajero.obtener_nombres(),
             "Fecha: " + self.__fecha_emision.strftime("%d/%m/%Y %H:%M:%S"),
             "=" * ANCHO,
         ]
@@ -69,8 +67,10 @@ class Comprobante(ABC):
 
 
 class Boleta(Comprobante):
-    def __init__(self, correlativo, pedido, medio_pago, cajero, dni_cliente="", nombre_cliente=""):
-        super().__init__("B001", correlativo, pedido, medio_pago, cajero)
+    def __init__(self, correlativo, pedido, medio_pago, dni_cliente="", nombre_cliente=""):
+        super().__init__("B001", correlativo, pedido, medio_pago)
+        if dni_cliente and (len(dni_cliente) != 8 or not dni_cliente.isdigit()):
+            raise ValueError("El DNI debe tener ocho digitos numericos.")
         self.__dni_cliente = dni_cliente
         self.__nombre_cliente = nombre_cliente
 
@@ -79,14 +79,22 @@ class Boleta(Comprobante):
 
     def imprimir(self):
         pedido = self.obtener_pedido()
-        lineas = ["=" * ANCHO, ("BOLETA DE VENTA " + self.obtener_numero_completo()).center(ANCHO),
-                  "SAKURAMAKI S.A.C. - RUC 20601234567".center(ANCHO), "=" * ANCHO]
+        lineas = [
+            "=" * ANCHO,
+            ("BOLETA DE VENTA " + self.obtener_numero_completo()).center(ANCHO),
+            "SAKURAMAKI S.A.C. - RUC 20601234567".center(ANCHO),
+            "=" * ANCHO,
+        ]
         if self.__nombre_cliente:
-            lineas.extend(["Cliente: " + self.__nombre_cliente, "DNI: " + self.__dni_cliente, "-" * ANCHO])
+            lineas.extend([
+                "Cliente: " + self.__nombre_cliente,
+                "DNI: " + self.__dni_cliente,
+                "-" * ANCHO,
+            ])
         lineas.extend(self._lineas_detalle())
         lineas.extend([
             "-" * ANCHO,
-            "Subtotal".ljust(48) + ("S/ %.2f" % pedido.calcular_subtotal()).rjust(16),
+            "Precio de venta".ljust(48) + ("S/ %.2f" % pedido.calcular_subtotal()).rjust(16),
             "Recargo al consumo".ljust(48) + ("S/ %.2f" % pedido.calcular_recargo()).rjust(16),
             "TOTAL A PAGAR".ljust(48) + ("S/ %.2f" % self.calcular_total()).rjust(16),
         ])
@@ -95,12 +103,12 @@ class Boleta(Comprobante):
 
 
 class Factura(Comprobante):
-    def __init__(self, correlativo, pedido, medio_pago, cajero, ruc, razon_social):
+    def __init__(self, correlativo, pedido, medio_pago, ruc, razon_social):
         if len(ruc) != 11 or not ruc.isdigit():
             raise ValueError("El RUC debe tener once digitos numericos.")
         if not razon_social.strip():
             raise ValueError("La razon social no puede quedar vacia.")
-        super().__init__("F001", correlativo, pedido, medio_pago, cajero)
+        super().__init__("F001", correlativo, pedido, medio_pago)
         self.__ruc = ruc
         self.__razon_social = razon_social.strip()
 
@@ -124,9 +132,15 @@ class Factura(Comprobante):
 
     def imprimir(self):
         pedido = self.obtener_pedido()
-        lineas = ["=" * ANCHO, ("FACTURA " + self.obtener_numero_completo()).center(ANCHO),
-                  "SAKURAMAKI S.A.C. - RUC 20601234567".center(ANCHO), "=" * ANCHO,
-                  "Adquirente: " + self.__razon_social, "RUC: " + self.__ruc, "-" * ANCHO]
+        lineas = [
+            "=" * ANCHO,
+            ("FACTURA " + self.obtener_numero_completo()).center(ANCHO),
+            "SAKURAMAKI S.A.C. - RUC 20601234567".center(ANCHO),
+            "=" * ANCHO,
+            "Adquirente: " + self.__razon_social,
+            "RUC: " + self.__ruc,
+            "-" * ANCHO,
+        ]
         lineas.extend(self._lineas_detalle())
         lineas.extend([
             "-" * ANCHO,

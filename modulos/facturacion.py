@@ -1,4 +1,4 @@
-"""Pantallas del modulo de facturacion (HU-10, HU-11 y HU-12)."""
+"""Pantallas del modulo de facturacion - HU-10, HU-11 y HU-12."""
 
 from utiles import validaciones
 
@@ -28,19 +28,33 @@ def _buscar_pedido(restaurante):
     return restaurante.buscar_pedido_por_mesa(numero_mesa)
 
 
+def _buscar_cajero(restaurante):
+    codigo = validaciones.leer_texto("   Codigo del cajero ......: ").upper()
+    cajero = restaurante.buscar_empleado(codigo)
+    if cajero is None:
+        raise ValueError("El empleado %s no se encuentra registrado." % codigo)
+    if hasattr(cajero, "esta_activo") and not cajero.esta_activo():
+        raise ValueError("El empleado %s no se encuentra activo." % codigo)
+    if cajero.obtener_tipo() != "Cajero":
+        raise ValueError("El empleado %s no tiene el rol Cajero." % codigo)
+    return cajero
+
+
 def _mostrar_resumen(pedido):
+    subtotal = pedido.calcular_subtotal()
+    valor_venta = subtotal / 1.18
     print("\n   Pedido: %-14s Estado: %s" % (pedido.obtener_numero(), pedido.obtener_estado()))
     print("   " + "-" * 60)
     for detalle in pedido.obtener_detalles():
-        nombre = detalle.obtener_producto().obtener_nombre()
-        print("   %3d  %-38s S/ %8.2f" %
-              (detalle.obtener_cantidad(), nombre[:38], detalle.calcular_subtotal()))
+        print("   %3d  %-38s S/ %8.2f" % (
+            detalle.obtener_cantidad(),
+            detalle.obtener_producto().obtener_nombre()[:38],
+            detalle.calcular_subtotal(),
+        ))
     print("   " + "-" * 60)
-    print("   Valor de venta .................. S/ %8.2f" %
-          (pedido.calcular_subtotal() / 1.18))
-    print("   IGV (18%%) ........................ S/ %8.2f" %
-          (pedido.calcular_subtotal() - pedido.calcular_subtotal() / 1.18))
-    print("   Precio de venta ................. S/ %8.2f" % pedido.calcular_subtotal())
+    print("   Valor de venta .................. S/ %8.2f" % valor_venta)
+    print("   IGV (18%%) ........................ S/ %8.2f" % (subtotal - valor_venta))
+    print("   Precio de venta ................. S/ %8.2f" % subtotal)
     print("   Recargo al consumo .............. S/ %8.2f" % pedido.calcular_recargo())
     print("   TOTAL A PAGAR ................... S/ %8.2f" % pedido.calcular_total())
 
@@ -52,19 +66,18 @@ def emitir_comprobante(restaurante):
         print("\n  [!] ERROR: no se encontro el pedido.")
         validaciones.pausar()
         return
-    if not pedido.esta_listo():
+    if pedido.obtener_estado() != "Listo":
         print("\n  [!] ERROR: el pedido debe encontrarse en estado Listo.")
         validaciones.pausar()
         return
-    if not pedido.obtener_detalles():
+    if len(pedido.obtener_detalles()) == 0:
         print("\n  [!] ERROR: el pedido no tiene productos registrados.")
         validaciones.pausar()
         return
 
     print("\n   Estado del pedido ......: " + pedido.obtener_estado())
-    codigo_cajero = validaciones.leer_texto("   Codigo del cajero ......: ").upper()
     try:
-        cajero = restaurante.buscar_cajero_activo(codigo_cajero)
+        cajero = _buscar_cajero(restaurante)
     except ValueError as error:
         print("\n  [!] ERROR: " + str(error))
         validaciones.pausar()
@@ -73,20 +86,15 @@ def emitir_comprobante(restaurante):
 
     print("\n   Tipo de comprobante: [1] Boleta  [2] Factura")
     tipo = validaciones.leer_entero("   Opcion ................: ", 1, 2)
-    datos_cliente = ()
     if tipo == 1:
         if validaciones.confirmar("   Registrar datos del cliente? [S/N]: "):
-            datos_cliente = (
-                validaciones.leer_dni("   DNI del cliente .......: "),
-                validaciones.leer_texto("   Nombre del cliente ....: "),
-            )
+            documento = validaciones.leer_dni("   DNI del cliente .......: ")
+            cliente = validaciones.leer_texto("   Nombre del cliente ....: ")
         else:
-            datos_cliente = ("", "")
+            documento, cliente = "", ""
     else:
-        datos_cliente = (
-            validaciones.leer_ruc("   RUC del adquirente ....: "),
-            validaciones.leer_texto("   Razon social ..........: "),
-        )
+        documento = validaciones.leer_ruc("   RUC del adquirente ....: ")
+        cliente = validaciones.leer_texto("   Razon social ..........: ")
 
     print("\n   Medio de pago: [1] Efectivo  [2] Tarjeta  [3] Billetera digital")
     opcion_pago = validaciones.leer_entero("   Opcion ................: ", 1, 3)
@@ -100,13 +108,9 @@ def emitir_comprobante(restaurante):
 
     try:
         if tipo == 1:
-            comprobante = restaurante.emitir_boleta(
-                pedido, medio_pago, cajero, datos_cliente[0], datos_cliente[1]
-            )
+            comprobante = restaurante.emitir_boleta(pedido, medio_pago, documento, cliente)
         else:
-            comprobante = restaurante.emitir_factura(
-                pedido, medio_pago, cajero, datos_cliente[0], datos_cliente[1]
-            )
+            comprobante = restaurante.emitir_factura(pedido, medio_pago, documento, cliente)
     except ValueError as error:
         print("\n  [!] ERROR: " + str(error))
         validaciones.pausar()
@@ -122,7 +126,7 @@ def emitir_comprobante(restaurante):
 def listar_comprobantes(restaurante):
     validaciones.titulo("FACTURACION > COMPROBANTES EMITIDOS")
     comprobantes = restaurante.listar_comprobantes()
-    if not comprobantes:
+    if len(comprobantes) == 0:
         print("   Todavia no se ha emitido ningun comprobante.")
         validaciones.pausar()
         return
