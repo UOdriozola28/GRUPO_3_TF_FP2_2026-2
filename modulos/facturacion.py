@@ -1,65 +1,7 @@
-"""Pantallas del modulo de facturacion - HU-10, HU-11 y HU-12."""
+"""Interfaz de consola del modulo de facturacion."""
 
-try:
-    from utiles import validaciones
-except (ModuleNotFoundError, ImportError):
-    class ValidacionesConsola:
-        """Validaciones minimas para ejecutar la preview sin otros modulos."""
-
-        @staticmethod
-        def titulo(texto):
-            print("\n+" + "-" * 68 + "+")
-            print("| " + texto.ljust(66) + " |")
-            print("+" + "-" * 68 + "+")
-
-        @staticmethod
-        def leer_entero(mensaje, minimo, maximo):
-            while True:
-                try:
-                    valor = int(input(mensaje))
-                    if minimo <= valor <= maximo:
-                        return valor
-                except ValueError:
-                    pass
-                print("  [!] Ingrese un numero entre %d y %d." % (minimo, maximo))
-
-        @staticmethod
-        def leer_texto(mensaje):
-            while True:
-                texto = input(mensaje).strip()
-                if texto:
-                    return texto
-                print("  [!] El dato no puede quedar vacio.")
-
-        @staticmethod
-        def leer_dni(mensaje):
-            while True:
-                dni = input(mensaje).strip()
-                if len(dni) == 8 and dni.isdigit():
-                    return dni
-                print("  [!] El DNI debe tener 8 digitos.")
-
-        @staticmethod
-        def leer_ruc(mensaje):
-            while True:
-                ruc = input(mensaje).strip()
-                if len(ruc) == 11 and ruc.isdigit():
-                    return ruc
-                print("  [!] El RUC debe tener 11 digitos.")
-
-        @staticmethod
-        def confirmar(mensaje):
-            while True:
-                respuesta = input(mensaje).strip().upper()
-                if respuesta in ("S", "N"):
-                    return respuesta == "S"
-                print("  [!] Responda S o N.")
-
-        @staticmethod
-        def pausar():
-            input("\n Presione ENTER para continuar...")
-
-    validaciones = ValidacionesConsola()
+from modelo.comprobante import IGV
+from utiles import validaciones
 
 
 def menu(restaurante):
@@ -101,7 +43,7 @@ def _buscar_cajero(restaurante):
 
 def _mostrar_resumen(pedido):
     subtotal = pedido.calcular_subtotal()
-    valor_venta = subtotal / 1.18
+    valor_venta = subtotal / (1 + IGV)
     print("\n   Pedido: %-14s Estado: %s" % (pedido.obtener_numero(), pedido.obtener_estado()))
     print("   " + "-" * 60)
     for detalle in pedido.obtener_detalles():
@@ -118,19 +60,51 @@ def _mostrar_resumen(pedido):
     print("   TOTAL A PAGAR ................... S/ %8.2f" % pedido.calcular_total())
 
 
+def _validar_pedido(pedido):
+    """Comprueba las condiciones necesarias antes de facturar."""
+    if pedido is None:
+        raise ValueError("No se encontro el pedido.")
+    if pedido.obtener_estado() != "Listo":
+        raise ValueError("El pedido debe encontrarse en estado Listo.")
+    if len(pedido.obtener_detalles()) == 0:
+        raise ValueError("El pedido no tiene productos registrados.")
+
+
+def _solicitar_datos_cliente(tipo):
+    """Retorna el documento y el nombre segun el tipo de comprobante."""
+    if tipo == 1:
+        if validaciones.confirmar("   Registrar datos del cliente? [S/N]: "):
+            dni = validaciones.leer_dni("   DNI del cliente .......: ")
+            nombre = validaciones.leer_texto("   Nombre del cliente ....: ")
+            return dni, nombre
+        return "", ""
+
+    ruc = validaciones.leer_ruc("   RUC del adquirente ....: ")
+    razon_social = validaciones.leer_texto("   Razon social ..........: ")
+    return ruc, razon_social
+
+
+def _seleccionar_medio_pago():
+    print("\n   Medio de pago: [1] Efectivo  [2] Tarjeta  [3] Billetera digital")
+    opcion = validaciones.leer_entero("   Opcion ................: ", 1, 3)
+    medios = ("Efectivo", "Tarjeta", "Billetera digital")
+    return medios[opcion - 1]
+
+
+def _generar_comprobante(restaurante, tipo, pedido, medio_pago, documento, cliente):
+    """Delega la creacion al objeto restaurante."""
+    if tipo == 1:
+        return restaurante.emitir_boleta(pedido, medio_pago, documento, cliente)
+    return restaurante.emitir_factura(pedido, medio_pago, documento, cliente)
+
+
 def emitir_comprobante(restaurante):
     validaciones.titulo("FACTURACION > EMITIR COMPROBANTE")
     pedido = _buscar_pedido(restaurante)
-    if pedido is None:
-        print("\n  [!] ERROR: no se encontro el pedido.")
-        validaciones.pausar()
-        return
-    if pedido.obtener_estado() != "Listo":
-        print("\n  [!] ERROR: el pedido debe encontrarse en estado Listo.")
-        validaciones.pausar()
-        return
-    if len(pedido.obtener_detalles()) == 0:
-        print("\n  [!] ERROR: el pedido no tiene productos registrados.")
+    try:
+        _validar_pedido(pedido)
+    except ValueError as error:
+        print("\n  [!] ERROR: " + str(error))
         validaciones.pausar()
         return
 
@@ -145,19 +119,8 @@ def emitir_comprobante(restaurante):
 
     print("\n   Tipo de comprobante: [1] Boleta  [2] Factura")
     tipo = validaciones.leer_entero("   Opcion ................: ", 1, 2)
-    if tipo == 1:
-        if validaciones.confirmar("   Registrar datos del cliente? [S/N]: "):
-            documento = validaciones.leer_dni("   DNI del cliente .......: ")
-            cliente = validaciones.leer_texto("   Nombre del cliente ....: ")
-        else:
-            documento, cliente = "", ""
-    else:
-        documento = validaciones.leer_ruc("   RUC del adquirente ....: ")
-        cliente = validaciones.leer_texto("   Razon social ..........: ")
-
-    print("\n   Medio de pago: [1] Efectivo  [2] Tarjeta  [3] Billetera digital")
-    opcion_pago = validaciones.leer_entero("   Opcion ................: ", 1, 3)
-    medio_pago = ("Efectivo", "Tarjeta", "Billetera digital")[opcion_pago - 1]
+    documento, cliente = _solicitar_datos_cliente(tipo)
+    medio_pago = _seleccionar_medio_pago()
     _mostrar_resumen(pedido)
 
     if not validaciones.confirmar("\n   Confirmar la emision y el cobro? [S/N]: "):
@@ -166,10 +129,9 @@ def emitir_comprobante(restaurante):
         return
 
     try:
-        if tipo == 1:
-            comprobante = restaurante.emitir_boleta(pedido, medio_pago, documento, cliente)
-        else:
-            comprobante = restaurante.emitir_factura(pedido, medio_pago, documento, cliente)
+        comprobante = _generar_comprobante(
+            restaurante, tipo, pedido, medio_pago, documento, cliente
+        )
     except ValueError as error:
         print("\n  [!] ERROR: " + str(error))
         validaciones.pausar()
