@@ -110,7 +110,6 @@ def agregar_productos(restaurante):
 
 
 def cargar_items(restaurante, pedido):
-    """Bucle de carga de productos sobre un pedido abierto."""
     seguir = True
     while seguir:
         mostrar_pedido(pedido)
@@ -161,7 +160,6 @@ def cargar_items(restaurante, pedido):
 
 
 def mostrar_pedido(pedido):
-    """Muestra las lineas del pedido y el acumulado."""
     print("")
     if pedido.obtener_mesa() is None:
         ubicacion = pedido.obtener_canal()
