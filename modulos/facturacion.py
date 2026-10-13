@@ -1,7 +1,7 @@
 """Interfaz de consola del modulo de facturacion."""
 
 from modelo.comprobante import IGV
-from utiles import validaciones_facturacion as validaciones
+from utiles import validaciones
 
 
 def menu(restaurante):
