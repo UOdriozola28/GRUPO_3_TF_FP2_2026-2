@@ -1,6 +1,3 @@
-"""Validaciones sencillas para las entradas de consola."""
-
-
 def leer_entero(mensaje, minimo, maximo):
     while True:
         try:
