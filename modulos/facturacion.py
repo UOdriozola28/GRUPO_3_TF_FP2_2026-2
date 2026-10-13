@@ -1,65 +1,6 @@
 """Pantallas del modulo de facturacion - HU-10, HU-11 y HU-12."""
 
-try:
-    from utiles import validaciones
-except (ModuleNotFoundError, ImportError):
-    class ValidacionesConsola:
-        """Validaciones minimas para ejecutar la preview sin otros modulos."""
-
-        @staticmethod
-        def titulo(texto):
-            print("\n+" + "-" * 68 + "+")
-            print("| " + texto.ljust(66) + " |")
-            print("+" + "-" * 68 + "+")
-
-        @staticmethod
-        def leer_entero(mensaje, minimo, maximo):
-            while True:
-                try:
-                    valor = int(input(mensaje))
-                    if minimo <= valor <= maximo:
-                        return valor
-                except ValueError:
-                    pass
-                print("  [!] Ingrese un numero entre %d y %d." % (minimo, maximo))
-
-        @staticmethod
-        def leer_texto(mensaje):
-            while True:
-                texto = input(mensaje).strip()
-                if texto:
-                    return texto
-                print("  [!] El dato no puede quedar vacio.")
-
-        @staticmethod
-        def leer_dni(mensaje):
-            while True:
-                dni = input(mensaje).strip()
-                if len(dni) == 8 and dni.isdigit():
-                    return dni
-                print("  [!] El DNI debe tener 8 digitos.")
-
-        @staticmethod
-        def leer_ruc(mensaje):
-            while True:
-                ruc = input(mensaje).strip()
-                if len(ruc) == 11 and ruc.isdigit():
-                    return ruc
-                print("  [!] El RUC debe tener 11 digitos.")
-
-        @staticmethod
-        def confirmar(mensaje):
-            while True:
-                respuesta = input(mensaje).strip().upper()
-                if respuesta in ("S", "N"):
-                    return respuesta == "S"
-                print("  [!] Responda S o N.")
-
-        @staticmethod
-        def pausar():
-            input("\n Presione ENTER para continuar...")
-
-    validaciones = ValidacionesConsola()
+from utiles import validaciones
 
 
 def menu(restaurante):
