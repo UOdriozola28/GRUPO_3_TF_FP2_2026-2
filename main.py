@@ -6,8 +6,12 @@ Ejecutar con: python3 main.py
 from modelo.comprobante import Boleta, Factura
 from modulos import facturacion
 
+RECARGO_AL_CONSUMO = 0.10
+
 
 class Producto:
+    """Producto minimo utilizado para la demostracion."""
+
     def __init__(self, nombre):
         self.__nombre = nombre
 
@@ -16,6 +20,8 @@ class Producto:
 
 
 class DetallePedido:
+    """Representa una linea del pedido."""
+
     def __init__(self, producto, cantidad, precio_unitario):
         self.__producto = producto
         self.__cantidad = cantidad
@@ -32,6 +38,8 @@ class DetallePedido:
 
 
 class Mesa:
+    """Mesa asociada a un pedido de salon."""
+
     def __init__(self, numero):
         self.__numero = numero
         self.__libre = False
@@ -44,6 +52,8 @@ class Mesa:
 
 
 class Cajero:
+    """Empleado autorizado para emitir comprobantes."""
+
     def __init__(self, codigo, nombres):
         self.__codigo = codigo
         self.__nombres = nombres
@@ -59,6 +69,8 @@ class Cajero:
 
 
 class Pedido:
+    """Agrupa productos y calcula el importe del consumo."""
+
     def __init__(self, numero, canal, mesa=None):
         self.__numero = numero
         self.__canal = canal
@@ -89,7 +101,7 @@ class Pedido:
 
     def calcular_recargo(self):
         if self.__canal == "Salon":
-            return self.calcular_subtotal() * 0.10
+            return self.calcular_subtotal() * RECARGO_AL_CONSUMO
         return 0.0
 
     def calcular_total(self):
@@ -100,7 +112,18 @@ class Pedido:
 
 
 class RestaurantePreview:
+    """Coordina pedidos, cajeros y comprobantes durante la preview."""
+
     def __init__(self):
+        self.__comprobantes = []
+        self.__numero_boleta = 0
+        self.__numero_factura = 0
+        self.__cajeros = []
+        self.__pedidos = []
+        self.__cargar_datos()
+
+    def __cargar_datos(self):
+        """Crea cajeros y pedidos listos para usar en la demostracion."""
         self.__cajeros = [
             Cajero("EMP021", "Carlos Mendoza"),
             Cajero("EMP022", "Lucia Fernandez"),
@@ -110,9 +133,9 @@ class RestaurantePreview:
         mesa_12 = Mesa(12)
 
         pedido_1 = Pedido("PED-000001", "Salon", mesa_7)
-        pedido_1.agregar_detalle(Producto("Maki acevichado"), 2, 28.00)
-        pedido_1.agregar_detalle(Producto("Gyoza de cerdo"), 1, 18.00)
-        pedido_1.agregar_detalle(Producto("Ramen tonkotsu"), 1, 26.00)
+        pedido_1.agregar_detalle(Producto("Maki acevichado (Grande)"), 2, 28.00)
+        pedido_1.agregar_detalle(Producto("Gyoza de cerdo (Personal)"), 1, 18.00)
+        pedido_1.agregar_detalle(Producto("Ramen tonkotsu (Personal)"), 1, 26.00)
         pedido_1.agregar_detalle(Producto("Te verde frio 1 L"), 1, 12.00)
 
         pedido_2 = Pedido("PED-000002", "Salon", mesa_12)
@@ -124,9 +147,6 @@ class RestaurantePreview:
         pedido_3.agregar_detalle(Producto("Te verde frio 1 L"), 1, 12.00)
 
         self.__pedidos = [pedido_1, pedido_2, pedido_3]
-        self.__comprobantes = []
-        self.__numero_boleta = 0
-        self.__numero_factura = 0
 
     def buscar_pedido_por_numero(self, numero):
         for pedido in self.__pedidos:
@@ -154,17 +174,19 @@ class RestaurantePreview:
         return self.__cajeros
 
     def emitir_boleta(self, pedido, medio_pago, dni, nombre):
-        self.__numero_boleta += 1
-        comprobante = Boleta(self.__numero_boleta, pedido, medio_pago, dni, nombre)
+        siguiente_numero = self.__numero_boleta + 1
+        comprobante = Boleta(siguiente_numero, pedido, medio_pago, dni, nombre)
+        self.__numero_boleta = siguiente_numero
         self.__cerrar_pedido(pedido)
         self.__comprobantes.append(comprobante)
         return comprobante
 
     def emitir_factura(self, pedido, medio_pago, ruc, razon_social):
-        self.__numero_factura += 1
+        siguiente_numero = self.__numero_factura + 1
         comprobante = Factura(
-            self.__numero_factura, pedido, medio_pago, ruc, razon_social
+            siguiente_numero, pedido, medio_pago, ruc, razon_social
         )
+        self.__numero_factura = siguiente_numero
         self.__cerrar_pedido(pedido)
         self.__comprobantes.append(comprobante)
         return comprobante
@@ -178,9 +200,8 @@ class RestaurantePreview:
         return self.__comprobantes
 
 
-def main():
-    restaurante = RestaurantePreview()
-    print("\nPREVIEW DE FACTURACION - SAKURAMAKI")
+def mostrar_datos_precargados(restaurante):
+    """Muestra los codigos que se pueden usar durante la demostracion."""
     print("\nDATOS PRECARGADOS")
     print("Cajeros:")
     for cajero in restaurante.listar_cajeros():
@@ -194,6 +215,12 @@ def main():
             pedido.obtener_numero(), pedido.obtener_canal(), mesa,
             pedido.calcular_total(),
         ))
+
+
+def main():
+    restaurante = RestaurantePreview()
+    print("\nPREVIEW DE FACTURACION - SAKURAMAKI")
+    mostrar_datos_precargados(restaurante)
     facturacion.menu(restaurante)
     print("\nFin de la preview.")
 

@@ -1,4 +1,4 @@
-"""Jerarquia de comprobantes de pago - HU-10 y HU-11."""
+"""Clases del negocio para emitir boletas y facturas."""
 
 from abc import ABC, abstractmethod
 from datetime import datetime
@@ -8,6 +8,8 @@ ANCHO = 64
 
 
 class Comprobante(ABC):
+    """Clase base con los datos comunes de todo comprobante."""
+
     def __init__(self, serie, correlativo, pedido, medio_pago):
         if pedido.obtener_estado() != "Listo":
             raise ValueError("Solo se puede facturar un pedido en estado Listo.")
@@ -67,6 +69,8 @@ class Comprobante(ABC):
 
 
 class Boleta(Comprobante):
+    """Comprobante para clientes con DNI opcional."""
+
     def __init__(self, correlativo, pedido, medio_pago, dni_cliente="", nombre_cliente=""):
         super().__init__("B001", correlativo, pedido, medio_pago)
         if dni_cliente and (len(dni_cliente) != 8 or not dni_cliente.isdigit()):
@@ -103,6 +107,8 @@ class Boleta(Comprobante):
 
 
 class Factura(Comprobante):
+    """Comprobante que muestra RUC, razon social, valor de venta e IGV."""
+
     def __init__(self, correlativo, pedido, medio_pago, ruc, razon_social):
         if len(ruc) != 11 or not ruc.isdigit():
             raise ValueError("El RUC debe tener once digitos numericos.")
