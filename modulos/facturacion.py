@@ -1,7 +1,6 @@
-"""Interfaz de consola del modulo de facturacion."""
-
 from modelo.comprobante import IGV
 from utiles import validaciones
+from utiles.formato import recortar
 
 
 def menu(restaurante):
@@ -29,49 +28,36 @@ def _buscar_pedido(restaurante):
     return restaurante.buscar_pedido_por_mesa(numero_mesa)
 
 
-def _buscar_cajero(restaurante):
-    codigo = validaciones.leer_texto("   Codigo del cajero ......: ").upper()
-    cajero = restaurante.buscar_empleado(codigo)
-    if cajero is None:
-        raise ValueError("El empleado %s no se encuentra registrado." % codigo)
-    if hasattr(cajero, "esta_activo") and not cajero.esta_activo():
-        raise ValueError("El empleado %s no se encuentra activo." % codigo)
-    if cajero.obtener_tipo() != "Cajero":
-        raise ValueError("El empleado %s no tiene el rol Cajero." % codigo)
-    return cajero
-
-
 def _mostrar_resumen(pedido):
     subtotal = pedido.calcular_subtotal()
     valor_venta = subtotal / (1 + IGV)
-    print("\n   Pedido: %-14s Estado: %s" % (pedido.obtener_numero(), pedido.obtener_estado()))
+    numero_pedido = pedido.obtener_numero().ljust(14)
+    print(f"\n   Pedido: {numero_pedido} Estado: {pedido.obtener_estado()}")
     print("   " + "-" * 60)
     for detalle in pedido.obtener_detalles():
-        print("   %3d  %-38s S/ %8.2f" % (
-            detalle.obtener_cantidad(),
-            detalle.obtener_producto().obtener_nombre()[:38],
-            detalle.calcular_subtotal(),
-        ))
+        cantidad = str(detalle.obtener_cantidad()).rjust(3)
+        nombre = recortar(detalle.obtener_producto().obtener_nombre(), 38).ljust(38)
+        importe = f"{detalle.calcular_subtotal():.2f}".rjust(8)
+        print(f"   {cantidad}  {nombre} S/ {importe}")
     print("   " + "-" * 60)
-    print("   Valor de venta .................. S/ %8.2f" % valor_venta)
-    print("   IGV (18%%) ........................ S/ %8.2f" % (subtotal - valor_venta))
-    print("   Precio de venta ................. S/ %8.2f" % subtotal)
-    print("   Recargo al consumo .............. S/ %8.2f" % pedido.calcular_recargo())
-    print("   TOTAL A PAGAR ................... S/ %8.2f" % pedido.calcular_total())
+    igv = subtotal - valor_venta
+    print("   Valor de venta .................. S/ " + f"{valor_venta:.2f}".rjust(8))
+    print("   IGV (18%) ........................ S/ " + f"{igv:.2f}".rjust(8))
+    print("   Precio de venta ................. S/ " + f"{subtotal:.2f}".rjust(8))
+    print("   Recargo al consumo .............. S/ " + f"{pedido.calcular_recargo():.2f}".rjust(8))
+    print("   TOTAL A PAGAR ................... S/ " + f"{pedido.calcular_total():.2f}".rjust(8))
 
 
 def _validar_pedido(pedido):
-    """Comprueba las condiciones necesarias antes de facturar."""
     if pedido is None:
         raise ValueError("No se encontro el pedido.")
-    if pedido.obtener_estado() != "Listo":
-        raise ValueError("El pedido debe encontrarse en estado Listo.")
+    if pedido.esta_pagado():
+        raise ValueError("El pedido ya fue pagado.")
     if len(pedido.obtener_detalles()) == 0:
         raise ValueError("El pedido no tiene productos registrados.")
 
 
 def _solicitar_datos_cliente(tipo):
-    """Retorna el documento y el nombre segun el tipo de comprobante."""
     if tipo == 1:
         if validaciones.confirmar("   Registrar datos del cliente? [S/N]: "):
             dni = validaciones.leer_dni("   DNI del cliente .......: ")
@@ -92,7 +78,6 @@ def _seleccionar_medio_pago():
 
 
 def _generar_comprobante(restaurante, tipo, pedido, medio_pago, documento, cliente):
-    """Delega la creacion al objeto restaurante."""
     if tipo == 1:
         return restaurante.emitir_boleta(pedido, medio_pago, documento, cliente)
     return restaurante.emitir_factura(pedido, medio_pago, documento, cliente)
@@ -109,13 +94,6 @@ def emitir_comprobante(restaurante):
         return
 
     print("\n   Estado del pedido ......: " + pedido.obtener_estado())
-    try:
-        cajero = _buscar_cajero(restaurante)
-    except ValueError as error:
-        print("\n  [!] ERROR: " + str(error))
-        validaciones.pausar()
-        return
-    print("   Cajero .................: " + cajero.obtener_nombres())
 
     print("\n   Tipo de comprobante: [1] Boleta  [2] Factura")
     tipo = validaciones.leer_entero("   Opcion ................: ", 1, 2)
@@ -124,7 +102,7 @@ def emitir_comprobante(restaurante):
     _mostrar_resumen(pedido)
 
     if not validaciones.confirmar("\n   Confirmar la emision y el cobro? [S/N]: "):
-        print("\n  [i] Operacion cancelada. El pedido permanece en estado Listo.")
+        print("\n  [i] Operacion cancelada. El pedido no fue cobrado.")
         validaciones.pausar()
         return
 
@@ -140,7 +118,8 @@ def emitir_comprobante(restaurante):
     print("\n" + comprobante.imprimir())
     print("\n  [OK] Pedido pagado y comprobante emitido correctamente.")
     if pedido.obtener_mesa() is not None:
-        print("  [OK] Mesa %02d liberada." % pedido.obtener_mesa().obtener_numero())
+        numero_mesa = str(pedido.obtener_mesa().obtener_numero()).rjust(2, "0")
+        print(f"  [OK] Mesa {numero_mesa} liberada.")
     validaciones.pausar()
 
 
@@ -154,14 +133,15 @@ def listar_comprobantes(restaurante):
 
     print(" NUMERO         TIPO       PEDIDO        MEDIO DE PAGO       TOTAL S/")
     print(" " + "-" * 68)
+    venta_acumulada = 0.0
     for comprobante in comprobantes:
-        print(" %-14s %-10s %-13s %-20s %9.2f" % (
-            comprobante.obtener_numero_completo(),
-            comprobante.obtener_tipo(),
-            comprobante.obtener_pedido().obtener_numero(),
-            comprobante.obtener_medio_pago(),
-            comprobante.calcular_total(),
-        ))
+        numero = comprobante.obtener_numero_completo().ljust(14)
+        tipo = comprobante.obtener_tipo().ljust(10)
+        pedido = comprobante.obtener_pedido().obtener_numero().ljust(13)
+        medio_pago = comprobante.obtener_medio_pago().ljust(20)
+        total = f"{comprobante.calcular_total():.2f}".rjust(9)
+        print(f" {numero} {tipo} {pedido} {medio_pago} {total}")
+        venta_acumulada = venta_acumulada + comprobante.calcular_total()
     print(" " + "-" * 68)
-    print(" Venta acumulada: S/ %.2f" % sum(c.calcular_total() for c in comprobantes))
+    print(f" Venta acumulada: S/ {venta_acumulada:.2f}")
     validaciones.pausar()

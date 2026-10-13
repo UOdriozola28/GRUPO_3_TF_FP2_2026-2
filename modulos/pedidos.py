@@ -181,16 +181,16 @@ def mostrar_pedido(pedido):
             texto = texto + producto.obtener_codigo().ljust(9)
             texto = texto + producto.obtener_nombre().ljust(28)
             texto = texto + str(detalle.obtener_cantidad()).rjust(4)
-            texto = texto + ("%.2f" % detalle.obtener_precio_unitario()).rjust(9)
-            texto = texto + ("%.2f" % detalle.calcular_subtotal()).rjust(11)
+            texto = texto + f"{detalle.obtener_precio_unitario():.2f}".rjust(9)
+            texto = texto + f"{detalle.calcular_subtotal():.2f}".rjust(11)
             print(" " + texto)
             numero_linea = numero_linea + 1
 
     print(" " + "-" * 66)
-    print(" Subtotal ................................. S/ %.2f" % pedido.calcular_subtotal())
+    print(f" Subtotal ................................. S/ {pedido.calcular_subtotal():.2f}")
     if pedido.calcular_recargo() > 0:
-        print(" Recargo al consumo (10%%) ................. S/ %.2f" % pedido.calcular_recargo())
-    print(" TOTAL .................................... S/ %.2f" % pedido.calcular_total())
+        print(f" Recargo al consumo (10%) ................. S/ {pedido.calcular_recargo():.2f}")
+    print(f" TOTAL .................................... S/ {pedido.calcular_total():.2f}")
 
 
 # ---------------------------------------------------------------- HU-08

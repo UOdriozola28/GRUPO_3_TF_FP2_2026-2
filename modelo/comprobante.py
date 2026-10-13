@@ -1,18 +1,17 @@
-"""Clases del negocio para emitir boletas y facturas."""
-
 from abc import ABC, abstractmethod
 from datetime import datetime
+
+from utiles.formato import recortar
 
 IGV = 0.18
 ANCHO = 64
 
 
 class Comprobante(ABC):
-    """Clase base con los datos comunes de todo comprobante."""
 
     def __init__(self, serie, correlativo, pedido, medio_pago):
-        if pedido.obtener_estado() != "Listo":
-            raise ValueError("Solo se puede facturar un pedido en estado Listo.")
+        if pedido.esta_pagado():
+            raise ValueError("El pedido ya fue pagado.")
         if len(pedido.obtener_detalles()) == 0:
             raise ValueError("El pedido no tiene productos registrados.")
         self.__serie = serie
@@ -22,7 +21,8 @@ class Comprobante(ABC):
         self.__fecha_emision = datetime.now()
 
     def obtener_numero_completo(self):
-        return "%s-%06d" % (self.__serie, self.__correlativo)
+        correlativo = str(self.__correlativo).rjust(6, "0")
+        return f"{self.__serie}-{correlativo}"
 
     def obtener_pedido(self):
         return self.__pedido
@@ -39,23 +39,18 @@ class Comprobante(ABC):
     def _lineas_detalle(self):
         lineas = ["CANT  DESCRIPCION".ljust(52) + "IMPORTE", "-" * ANCHO]
         for detalle in self.__pedido.obtener_detalles():
-            producto = detalle.obtener_producto()
-            descripcion = producto.obtener_nombre()
-            if hasattr(producto, "obtener_tamanio"):
-                descripcion += " (" + producto.obtener_tamanio() + ")"
-            lineas.append(
-                str(detalle.obtener_cantidad()).rjust(4)
-                + "  "
-                + descripcion[:42].ljust(42)
-                + ("%.2f" % detalle.calcular_subtotal()).rjust(12)
-            )
+            descripcion = detalle.obtener_producto().obtener_nombre()
+            cantidad = str(detalle.obtener_cantidad()).rjust(4)
+            importe = f"{detalle.calcular_subtotal():.2f}".rjust(12)
+            lineas.append(cantidad + "  " + recortar(descripcion, 42).ljust(42) + importe)
         return lineas
 
     def _pie(self):
+        fecha = self.__fecha_emision.strftime("%d/%m/%Y %H:%M:%S")
         return [
             "-" * ANCHO,
             "Medio de pago: " + self.__medio_pago,
-            "Fecha: " + self.__fecha_emision.strftime("%d/%m/%Y %H:%M:%S"),
+            "Fecha: " + fecha,
             "=" * ANCHO,
         ]
 
@@ -67,9 +62,13 @@ class Comprobante(ABC):
     def imprimir(self):
         pass
 
+    def __str__(self):
+        return (f"{self.obtener_numero_completo()} - {self.obtener_tipo()}"
+                f" - Pedido {self.__pedido.obtener_numero()} - {self.__medio_pago}"
+                f" - Total S/ {self.calcular_total():.2f}")
+
 
 class Boleta(Comprobante):
-    """Comprobante para clientes con DNI opcional."""
 
     def __init__(self, correlativo, pedido, medio_pago, dni_cliente="", nombre_cliente=""):
         super().__init__("B001", correlativo, pedido, medio_pago)
@@ -96,18 +95,26 @@ class Boleta(Comprobante):
                 "-" * ANCHO,
             ])
         lineas.extend(self._lineas_detalle())
+        precio_venta = f"S/ {pedido.calcular_subtotal():.2f}"
+        recargo = f"S/ {pedido.calcular_recargo():.2f}"
+        total = f"S/ {self.calcular_total():.2f}"
         lineas.extend([
             "-" * ANCHO,
-            "Precio de venta".ljust(48) + ("S/ %.2f" % pedido.calcular_subtotal()).rjust(16),
-            "Recargo al consumo".ljust(48) + ("S/ %.2f" % pedido.calcular_recargo()).rjust(16),
-            "TOTAL A PAGAR".ljust(48) + ("S/ %.2f" % self.calcular_total()).rjust(16),
+            "Precio de venta".ljust(48) + precio_venta.rjust(16),
+            "Recargo al consumo".ljust(48) + recargo.rjust(16),
+            "TOTAL A PAGAR".ljust(48) + total.rjust(16),
         ])
         lineas.extend(self._pie())
         return "\n".join(lineas)
 
+    def __str__(self):
+        texto = super().__str__()
+        if self.__nombre_cliente:
+            texto = texto + f" - Cliente {self.__nombre_cliente} (DNI {self.__dni_cliente})"
+        return texto
+
 
 class Factura(Comprobante):
-    """Comprobante que muestra RUC, razon social, valor de venta e IGV."""
 
     def __init__(self, correlativo, pedido, medio_pago, ruc, razon_social):
         if len(ruc) != 11 or not ruc.isdigit():
@@ -148,13 +155,21 @@ class Factura(Comprobante):
             "-" * ANCHO,
         ]
         lineas.extend(self._lineas_detalle())
+        valor_venta = f"S/ {self.calcular_valor_venta():.2f}"
+        igv = f"S/ {self.calcular_igv():.2f}"
+        precio_venta = f"S/ {pedido.calcular_subtotal():.2f}"
+        recargo = f"S/ {pedido.calcular_recargo():.2f}"
+        total = f"S/ {self.calcular_total():.2f}"
         lineas.extend([
             "-" * ANCHO,
-            "Valor de venta".ljust(48) + ("S/ %.2f" % self.calcular_valor_venta()).rjust(16),
-            "IGV (18%)".ljust(48) + ("S/ %.2f" % self.calcular_igv()).rjust(16),
-            "Precio de venta".ljust(48) + ("S/ %.2f" % pedido.calcular_subtotal()).rjust(16),
-            "Recargo al consumo".ljust(48) + ("S/ %.2f" % pedido.calcular_recargo()).rjust(16),
-            "TOTAL A PAGAR".ljust(48) + ("S/ %.2f" % self.calcular_total()).rjust(16),
+            "Valor de venta".ljust(48) + valor_venta.rjust(16),
+            "IGV (18%)".ljust(48) + igv.rjust(16),
+            "Precio de venta".ljust(48) + precio_venta.rjust(16),
+            "Recargo al consumo".ljust(48) + recargo.rjust(16),
+            "TOTAL A PAGAR".ljust(48) + total.rjust(16),
         ])
         lineas.extend(self._pie())
         return "\n".join(lineas)
+
+    def __str__(self):
+        return super().__str__() + f" - {self.__razon_social} (RUC {self.__ruc})"

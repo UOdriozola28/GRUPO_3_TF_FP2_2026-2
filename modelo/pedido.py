@@ -2,6 +2,7 @@ from datetime import datetime
 
 RECARGO_AL_CONSUMO = 0.10
 
+
 class DetallePedido:
 
     def __init__(self, producto, cantidad):
@@ -21,13 +22,16 @@ class DetallePedido:
     def calcular_subtotal(self):
         return self.__precio_unitario * self.__cantidad
 
+    def __str__(self):
+        return f"{self.__cantidad} x {self.__producto.obtener_nombre()} - S/ {self.calcular_subtotal():.2f}"
+
 
 class Pedido:
 
     def __init__(self, numero, canal, mesa, mozo):
         self.__numero = numero
         self.__canal = canal
-        self.__mesa = mesa          
+        self.__mesa = mesa
         self.__mozo = mozo
         self.__fecha_hora = datetime.now()
         self.__estado = "Registrado"
@@ -96,3 +100,10 @@ class Pedido:
         for detalle in self.__detalles:
             total = total + detalle.obtener_cantidad()
         return total
+
+    def __str__(self):
+        if self.__mesa is None:
+            ubicacion = self.__canal
+        else:
+            ubicacion = f"Mesa {self.__mesa.obtener_numero()}"
+        return f"Pedido {self.__numero} - {ubicacion} - {self.__estado} - {self.contar_items()} items - Total S/ {self.calcular_total():.2f}"

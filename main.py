@@ -10,7 +10,7 @@ def mostrar_portada():
     print("+" + "-" * 68 + "+")
 
 def main():
-    restaurante = Restaurante("SakuraMaki S.A.C.","20601234567")
+    restaurante = Restaurante("SakuraMaki S.A.C.", "20601234567")
     datos_iniciales.cargar_datos(restaurante)
 
     opcion = -1
@@ -34,9 +34,8 @@ def main():
             facturacion.menu(restaurante)
 
     print("")
-    print(" Gracias por usar el sistema. Hasta pronto:3")
+    print(" Gracias por usar el sistema. Hasta pronto :3")
     print("")
+
 if __name__ == "__main__":
     main()
-
-                                

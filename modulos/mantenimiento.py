@@ -79,7 +79,7 @@ def registrar_producto(restaurante):
             return
 
     print("")
-    print("   Precio calculado: S/ %.2f" % producto.calcular_precio())
+    print(f"   Precio calculado: S/ {producto.calcular_precio():.2f}")
     print("")
 
     if validaciones.confirmar(" Confirmar el registro? [S/N]: "):
@@ -110,7 +110,7 @@ def listar_productos(restaurante):
         codigo = producto.obtener_codigo().ljust(9)
         nombre = producto.obtener_nombre().ljust(32)
         categoria = producto.obtener_categoria().ljust(14)
-        precio = ("%.2f" % producto.calcular_precio()).rjust(9)
+        precio = f"{producto.calcular_precio():.2f}".rjust(9)
         print(" " + codigo + nombre + categoria + precio)
     print(" " + "-" * 66)
     print(" Productos registrados: " + str(len(productos)))
@@ -143,7 +143,7 @@ def registrar_empleado(restaurante):
         empleado = Mozo(codigo, nombres, dni, basico, porcentaje)
     elif tipo == 2:
         especialidad = validaciones.leer_texto("   Especialidad ...........: ")
-        empleado = Cocinero(codigo, nombres, dni, basico)
+        empleado = Cocinero(codigo, nombres, dni, basico, especialidad)
     else:
         monto = validaciones.leer_decimal("   Monto por entrega (S/) .: ")
         empleado = Repartidor(codigo, nombres, dni, basico, monto)
@@ -178,12 +178,12 @@ def consultar_remuneraciones(restaurante):
         codigo = empleado.obtener_codigo().ljust(10)
         nombre = empleado.obtener_nombres().ljust(21)
         tipo = empleado.obtener_tipo().ljust(12)
-        basico = ("%.2f" % empleado.obtener_sueldo_basico()).rjust(8)
+        basico = f"{empleado.obtener_sueldo_basico():.2f}".rjust(8)
         remuneracion = empleado.calcular_remuneracion()
-        variable = ("%.2f" % empleado.calcular_variable()).rjust(10)
-        total = ("%.2f" % remuneracion).rjust(10)
+        variable = f"{empleado.calcular_variable():.2f}".rjust(10)
+        total = f"{remuneracion:.2f}".rjust(10)
         print(" " + codigo + nombre + tipo + basico + variable + total)
         total_planilla = total_planilla + remuneracion
     print(" " + "-" * 70)
-    print(" Total de la planilla ..................... S/ %.2f" % total_planilla)
+    print(f" Total de la planilla ..................... S/ {total_planilla:.2f}")
     validaciones.pausar()

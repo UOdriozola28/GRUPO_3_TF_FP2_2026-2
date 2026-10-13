@@ -1,49 +1,103 @@
-# Modulo de facturacion - SakuraMaki
+# Sistema de pedidos y facturacion - SakuraMaki
 
-Esta rama contiene una preview independiente del modulo de facturacion. Su objetivo
-es demostrar las HU-10, HU-11 y HU-12 mientras los demas integrantes desarrollan
-los modulos de mantenimiento y pedidos.
+Curso 1FIS0275 - Fundamentos de Programacion 2, ciclo 2026-2
+
+Integrantes:
+- Walinn
+- Gian
+- Lucas
+- Angie
+
+Programa de consola para un restaurante de comida japonesa. Permite registrar
+productos y empleados, tomar pedidos y emitir boletas y facturas.
 
 ## Ejecutar
 
 ```bash
-python3 main.py
+python main.py
 ```
 
-La preview muestra los pedidos y cajeros disponibles antes de abrir el menu.
+Para correr las pruebas de la logica del negocio:
+
+```bash
+python pruebas/pruebas_negocio.py
+```
+
+Cada prueba imprime OK o FALLA y al final se muestra cuantas salieron bien.
+
+## Menus
+
+1. **Mantenimiento de datos maestros:** registrar y listar productos (plato, bebida o
+   combo), registrar empleados (mozo, cocinero o repartidor) y consultar la
+   remuneracion del personal.
+2. **Gestion de pedidos:** registrar un pedido (salon, para llevar o delivery),
+   agregar o quitar lineas, enviarlo a cocina y buscarlo por numero o por mesa.
+3. **Facturacion:** emitir una boleta o una factura, cobrar el pedido y ver los
+   comprobantes emitidos.
 
 ## Organizacion
 
 ```text
-main.py                  Clases minimas y datos para ejecutar la preview
-modelo/comprobante.py    Comprobante, Boleta y Factura
-modulos/facturacion.py   Menu y flujo de emision
-utiles/validaciones_facturacion.py   Lectura segura de datos con try/except
+main.py                       Portada y menu principal
+modelo/producto.py            Producto (abstracta), Bebida, Plato y Combo
+modelo/empleado.py            Empleado (abstracta), Mozo, Repartidor y Cocinero
+modelo/mesa.py                Mesa
+modelo/pedido.py              DetallePedido y Pedido
+modelo/comprobante.py         Comprobante (abstracta), Boleta y Factura
+sistema/restaurante.py        Guarda productos, empleados, mesas, pedidos y comprobantes
+modulos/mantenimiento.py      Pantallas de mantenimiento
+modulos/pedidos.py            Pantallas de pedidos
+modulos/facturacion.py        Pantallas de facturacion
+utiles/validaciones.py        Lectura segura de datos con try/except
+utiles/formato.py             Funcion para recortar texto
+utiles/datos_iniciales.py     Productos, empleados y mesas de ejemplo
+pruebas/pruebas_negocio.py    Pruebas de los metodos de negocio
 ```
 
-## Orden sugerido para explicar el codigo
+## Reglas del negocio
 
-1. `main.py` crea los datos precargados y llama al menu de facturacion.
-2. `facturacion.py` busca y valida el pedido y el cajero.
-3. El usuario selecciona boleta o factura y el medio de pago.
-4. `comprobante.py` crea el objeto correspondiente y prepara su impresion.
-5. El restaurante guarda el comprobante, paga el pedido y libera la mesa.
+- **Estados del pedido:** Registrado, En preparacion y Pagado.
+- Un pedido se puede facturar si no esta pagado y tiene al menos una linea.
+- Al pagar, el pedido pasa a Pagado, la mesa queda libre y el mozo acumula propina.
+- **Precio del plato:** el tamano Mediano suma S/ 3 y el Grande suma S/ 6.
+- **Combo:** suma el precio de sus productos y resta su descuento.
+- **Recargo al consumo:** 10 % del subtotal, solo en pedidos de salon.
+- **Factura:** el precio de venta incluye IGV. Se divide entre `1 + 0.18` para obtener
+  el valor de venta, y la diferencia es el IGV.
+- **Remuneracion:**
+  - Mozo: sueldo basico mas un porcentaje de la propina acumulada.
+  - Repartidor: sueldo basico mas un monto por cada entrega.
+  - Cocinero: solo el sueldo basico.
 
 ## Conceptos de POO
 
-- Abstraccion: `Comprobante` define la estructura comun.
-- Herencia: `Boleta` y `Factura` heredan de `Comprobante`.
-- Polimorfismo: cada subclase implementa su propio metodo `imprimir()`.
-- Encapsulamiento: los atributos usan doble guion bajo y se consultan mediante metodos.
-- Composicion: `Pedido` contiene objetos `DetallePedido`.
+- **Abstraccion:** `Producto`, `Empleado` y `Comprobante` son clases abstractas.
+- **Herencia:** `Plato`, `Bebida` y `Combo` heredan de `Producto`; `Mozo`, `Repartidor`
+  y `Cocinero` de `Empleado`; `Boleta` y `Factura` de `Comprobante`.
+- **Polimorfismo:** cada subclase implementa a su manera `calcular_precio()`,
+  `calcular_remuneracion()` o `imprimir()`, y tiene su propio `__str__`.
+- **Encapsulamiento:** los atributos usan doble guion bajo y se consultan con metodos.
+- **Composicion:** `Pedido` contiene objetos `DetallePedido`. Si se borra el pedido, sus
+  lineas desaparecen, porque no existen sin el.
+- **Agregacion:** `Combo` contiene productos. Si se borra el Combo Duo Sakura, el maki y
+  el te verde siguen en la carta, porque existen por separado.
+- **Manejo de excepciones:** el modelo lanza `ValueError` o `IndexError` cuando se rompe
+  una regla (codigo repetido, RUC invalido, pedido ya pagado, linea inexistente). Los
+  modulos las atrapan con `try/except` y muestran un mensaje en vez de cerrar el
+  programa. `utiles/validaciones.py` repite la pregunta hasta recibir un dato valido.
 
-## Datos para la demostracion
+## Datos de ejemplo
 
 ```text
-Cajeros: EMP021 y EMP022
-Pedidos: PED-000001, PED-000002 y PED-000003
-Mesas disponibles para busqueda: 7 y 12
+Productos: MAK01, RAM01, GYO01, DON01, BEB03, BEB05 y el combo CMB02
+Mozos: EMP015 y EMP018
+Cocinero: EMP004
+Repartidor: EMP011
+Mesas: 1 a 12 (4 personas) y 13 a 18 (6 personas)
 ```
 
-La factura usa precios que incluyen IGV. Por eso divide el precio de venta entre
-`1 + 0.18` para obtener el valor de venta y calcula la diferencia como IGV.
+## Estilo del codigo
+
+Pensado para explicarse en clase: textos con f-strings, alineacion con `ljust` y
+`rjust`, bucles `for` y `while` normales, y sin list comprehensions, lambdas ni
+decoradores (salvo `@abstractmethod`).

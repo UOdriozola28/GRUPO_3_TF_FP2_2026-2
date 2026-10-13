@@ -6,7 +6,29 @@ def leer_entero(mensaje, minimo, maximo):
                 raise ValueError
             return numero
         except ValueError:
-            print("  [!] ERROR: ingrese un numero entre %d y %d." % (minimo, maximo))
+            print(f"  [!] ERROR: ingrese un numero entre {minimo} y {maximo}.")
+
+
+def leer_decimal(mensaje):
+    while True:
+        try:
+            numero = float(input(mensaje))
+            if numero <= 0:
+                raise ValueError
+            return numero
+        except ValueError:
+            print("  [!] ERROR: ingrese un numero positivo.")
+
+
+def leer_cantidad(mensaje):
+    while True:
+        try:
+            cantidad = int(input(mensaje))
+            if cantidad <= 0:
+                raise ValueError
+            return cantidad
+        except ValueError:
+            print("  [!] ERROR: ingrese un entero mayor que cero.")
 
 
 def leer_texto(mensaje):
