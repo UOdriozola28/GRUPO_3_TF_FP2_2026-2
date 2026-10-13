@@ -18,7 +18,7 @@ La preview muestra los pedidos y cajeros disponibles antes de abrir el menu.
 main.py                  Clases minimas y datos para ejecutar la preview
 modelo/comprobante.py    Comprobante, Boleta y Factura
 modulos/facturacion.py   Menu y flujo de emision
-utiles/validaciones.py   Lectura segura de datos con try/except
+utiles/validaciones_facturacion.py   Lectura segura de datos con try/except
 ```
 
 ## Orden sugerido para explicar el codigo
